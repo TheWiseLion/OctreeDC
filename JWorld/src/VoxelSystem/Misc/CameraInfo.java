@@ -9,7 +9,7 @@ public class CameraInfo {
 	public Vector3f viewDistance;
 	float baseError;
 	float fallOffSpeed;
-	public float recomputeThreshold = 80f;
+	public float recomputeThreshold = 10f;
 	// ErrorNode = max(Distance/fallOffSpeed, 1) * baseError
 	
 	public boolean shouldBeLeaf(OctreeNode n){
@@ -24,11 +24,11 @@ public class CameraInfo {
 //		 System.out.println("Error Check: "+error+" vs "+n.getGeometricError()+" vs "+dSquard+" vs "+dSquard/1000f);
 //		}
 		
-		if (error > n.getGeometricError() && n.topographicallySafe()) {
-			return true;
-		} else {
+//		if (error > n.getGeometricError() && n.topographicallySafe()) {
+//			return true;
+//		} else {
 			return false;
-		}
+//		}
 		
 //			int maxDepth = (int) Math.max(1, 8 - dSquard/10000f);
 ////			System.out.println(maxDepth);
@@ -37,7 +37,7 @@ public class CameraInfo {
 //			}else{
 //				return false;
 //			}
-
-		
 	}
+	
+	
 }

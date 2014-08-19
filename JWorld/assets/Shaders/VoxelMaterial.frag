@@ -93,6 +93,13 @@ void main(){
     blending.xyz /= (blending.x + blending.y + blending.z );
 	
 	//TODO: obtain dominate 2 coords
+	//vec3 tangent = normalize(vec3(1, 1, 1));
+	//vec3 stepBetween = cross(tangent, triplanerNormal);
+	//vec3 binormal = normalize(stepBetween);
+	//tangent = normalize(cross(triplanerNormal, binormal));
+	//float3x3 TBN = float3x3(tangent, binormal, triplanerNormal);
+	//float3 eyeDir2 = normalize(mul(TBN, eyeDir));
+	
 	
 	
 	vec3 coords = vertex * m_Scalar;
@@ -153,6 +160,7 @@ void main(){
  	gl_FragColor.rgb =  AmbientSum       * diffuseColor.rgb  +
                         DiffuseSum.rgb   * diffuseColor.rgb  * vec3(light.x) +
                            SpecularSum2.rgb * specularColor.rgb * vec3(light.y);
+    //gl_FragColor.rgb = tangent;
     gl_FragColor.a = 1.0;
 	
 	

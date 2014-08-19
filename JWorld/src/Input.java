@@ -73,7 +73,7 @@ public class Input {
 	      
 	      if (name.equals("Run")) {
 	    	  if( keyPressed){
-	    		  gd.getFlyByCamera().setMoveSpeed(50);
+	    		  gd.getFlyByCamera().setMoveSpeed(150);
 	    	  }else{
 	    		  gd.getFlyByCamera().setMoveSpeed(10);
 	    	  }

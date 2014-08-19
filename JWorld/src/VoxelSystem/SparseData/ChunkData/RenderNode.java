@@ -22,6 +22,7 @@ public class RenderNode {
 	public ChunkMeshManager meshManager;
 	public OctreeNode node;
 	
+	
 	public RenderNode(){
 		meshManager = new ChunkMeshManager();
 	}
@@ -58,7 +59,5 @@ public class RenderNode {
 	public int getDirtyCount(CameraInfo cI){
 		return 0;
 	}
-	
-	
 	
 }

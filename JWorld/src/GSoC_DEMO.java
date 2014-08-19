@@ -90,9 +90,9 @@ public class GSoC_DEMO extends SimpleApplication {
     	MaterialRegistry materialTypes = Materials.getMaterials(assetManager);
     	
     	flyCam.setZoomSpeed(0);
-    	flyCam.setMoveSpeed(10);
+    	flyCam.setMoveSpeed(50);
         cam.setLocation(new Vector3f(14.81f,2.7f,14.4f));
-        
+        cam.setFrustumFar(10000);
         //PHYSICS SETUP//
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
@@ -106,17 +106,18 @@ public class GSoC_DEMO extends SimpleApplication {
         
 		BoxVolume bv = new BoxVolume(new Vector3f(20,20,20),10,10,10);
 		
-		SphereVolume sv = new SphereVolume(new Vector3f(20,20,20),10f);
+		SphereVolume sv = new SphereVolume(new Vector3f(256,256,256),20f);
 		
 		
-		vbo = new VoxelObject(.5f,new Vector3f(1000,1000,1000),100f);
+		vbo = new VoxelObject(.5f,new Vector3f(5000,200,5000),100f);
+		
 		vbo.setMaterialRegistry(materialTypes);
 		vbo.getVoxelData().set(new VoxelConverter(new NoiseShape(.5f)),5);
 //		vbo.getVoxelData().set(new VoxelConverter(bv),6);
-//		vbo.getVoxelData().set(new VoxelConverter(sv),4);
+//		vbo.getVoxelData().set(new VoxelConverter(sv),6);
 		vbo.update(new Vector3f(20,20,20));
 		rootNode.attachChild(vbo.getObjectNode());
-		
+		vbo.getMesher().getCameraInfo().viewDistance = new Vector3f(100,100,100);
         
 //		vbo.set(new VoxelConverter(sv),7);
 //		List<Vector3f> points =  vbo.update();
@@ -161,7 +162,7 @@ public class GSoC_DEMO extends SimpleApplication {
 //		g1.setMaterial(blue);
 //		g1.setCullHint(CullHint.Never);
 //		rootNode.attachChild(g1);
-//
+////
 //		Geometry g3 = new Geometry();
 //		g3.setMesh(vbo.getVoxelData().getOctreeMesh(false,true,vbo.getMesher().getCameraInfo()));
 //		g3.setMaterial(green);

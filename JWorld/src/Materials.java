@@ -91,6 +91,10 @@ public class Materials {
 		
 		Material greenMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		greenMat.setColor("Color", ColorRGBA.Green);
+		Material redMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		redMat.setColor("Color", ColorRGBA.Red);
+		Material blueMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		blueMat.setColor("Color", ColorRGBA.Blue);
 		
 		// Initialize Voxel Materials:
 //		Map<Integer,VoxelMaterial> types = new HashMap<Integer,VoxelMaterial>();
@@ -118,10 +122,11 @@ public class Materials {
 		pebbles.name = "pebbles";
 		pebbles.jMEMaterial = blackPebbleMaterial;
 		
-		VoxelMaterial green = new VoxelMaterial();
-		green.jMEMaterial = greenMat;
 		
 		MaterialRegistry mr = new MaterialRegistry();
+		mr.normals = greenMat;
+		mr.tangents = redMat;
+		mr.bitangent  = blueMat;
 //		mr.registerMaterial(green);
 		mr.registerMaterial(sand);
 		mr.registerMaterial(rock);

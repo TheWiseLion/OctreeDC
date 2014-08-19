@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.math.Vector4f;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.util.BufferUtils;
@@ -33,83 +34,115 @@ public class MeshOutput {
 		vertexBiTangents = new ArrayList<Vector3f>();
 	}
 	
+	
+	public void add(MeshOutput additionalTriangles){
+		List<Integer> triangles = additionalTriangles.triangles;
+		List<Vector3f> verticies = additionalTriangles.verticies;
+		Vector3f zero = new Vector3f();
+		for(int i=0; i< triangles.size(); i+=3){
+			Vector3f v1 = additionalTriangles.iToV.get(triangles.get(i));
+			Vector3f v2 = additionalTriangles.iToV.get(triangles.get(i+1));
+			Vector3f v3 = additionalTriangles.iToV.get(triangles.get(i+2));
+			
+			this.triangles.add(getTriIndex(v1, zero, zero, zero, this));
+			this.triangles.add(getTriIndex(v2, zero, zero, zero, this));
+			this.triangles.add(getTriIndex(v3, zero, zero, zero, this));
+		}
+		
+		for(int i=0; i < verticies.size(); i++){
+			if(vToI.containsKey(verticies.get(i))){
+				int index = vToI.get(verticies.get(i));
+				this.vertexNormals.get(index).addLocal(additionalTriangles.vertexNormals.get(i));
+				this.vertexTangents.get(index).addLocal(additionalTriangles.vertexTangents.get(i));
+				this.vertexBiTangents.get(index).addLocal(additionalTriangles.vertexBiTangents.get(i));
+			}
+		}
+		
+	}
+	
 	/***
 	 * Compiles mesh data. 
 	 * if debug flag is set true tangent/normal/bitangent meshes will also be generated
 	 * @param compileDebugInfo
 	 * @return
 	 */
-	public Mesh[] compile(boolean compileDebugInfo){
+	public Mesh[] compile(ArrayList<MeshOutput> supportVerts, boolean compileDebugInfo){
 		IntBuffer indicies = BufferUtils.createIntBuffer(this.triangles.size());
 		FloatBuffer verticies = BufferUtils.createFloatBuffer(this.verticies.size()*3);
 		FloatBuffer normals = BufferUtils.createFloatBuffer(this.vertexNormals.size()*3);
 		FloatBuffer tangents = BufferUtils.createFloatBuffer(this.vertexTangents.size()*4);
+		FloatBuffer extraNormals = null;
+		FloatBuffer extraTangents = null;
+		FloatBuffer extraBitangents = null;
+		
+		if(compileDebugInfo){
+			extraNormals = BufferUtils.createFloatBuffer(this.vertexNormals.size()*3*2);
+			extraTangents = BufferUtils.createFloatBuffer(this.vertexTangents.size()*3*2);
+			extraBitangents = BufferUtils.createFloatBuffer(this.vertexTangents.size()*3*2);
+		}
 		
 		//TODO: Correct errors related to shared vertex
-		
-		for(Vector3f v : vertexNormals){
-			
-			v.normalizeLocal();
-			normals.put(v.x);
-			normals.put(v.y);
-			normals.put(v.z);
-		}
-		
-		for(int i =0; i< vertexTangents.size(); i++){
-			Vector3f n = this.vertexNormals.get(i);
-			
-			Vector3f t = vertexTangents.get(i);
-			Vector3f b = vertexBiTangents.get(i);
-			
-			// Calculate handedness
-			float handedness = (n.cross(t).dot(b) < 0.0F) ? -1.0F : 1.0F;
-			
-			// Gram-Schmidt orthogonalize
-	        t.set((t.subtract(n.mult(n.dot(t)))).normalize());
-	        
-			
-			tangents.put(t.x);
-			tangents.put(t.y);
-			tangents.put(t.z);
-			tangents.put(handedness);
-		
-		}
-		
-		indicies.rewind();
 		for(int v : triangles){
 			indicies.put(v);
 		}
 		
-		verticies.rewind();
+	
 		for(int i =0; i < this.iToV.size();i++){
 			Vector3f v = this.iToV.get(i);
+			Vector3f n = new Vector3f(this.vertexNormals.get(i));
+			Vector3f t = new Vector3f(this.vertexTangents.get(i));
+			Vector3f b = new Vector3f(this.vertexBiTangents.get(i));
+			
+			if(supportVerts != null){
+				for(MeshOutput mo : supportVerts){
+					if(mo.vToI.get(v)!=null){
+//						System.out.println("Here");
+						int index = mo.vToI.get(v);
+						n.addLocal(mo.vertexNormals.get(index));
+						t.addLocal(mo.vertexTangents.get(index));
+						b.addLocal(mo.vertexBiTangents.get(index));
+					}
+				}
+			}
+			
+			n.normalizeLocal();
+//			// Calculate handedness
+			float handedness = (n.cross(t).dot(b) < 0.0F) ? -1.0F : 1.0F;
+//			
+//			// Gram-Schmidt orthogonalize
+			float dot = n.dot(t);
+	        t.subtractLocal(n.mult(dot)).normalizeLocal();
+	        
+	        tangents.put(t.x);
+	        tangents.put(t.y);
+	        tangents.put(t.z);
+	        tangents.put(handedness);
+	        
+			normals.put(n.x);
+			normals.put(n.y);
+			normals.put(n.z);
+			
 			verticies.put(v.x);
 			verticies.put(v.y);
 			verticies.put(v.z);
-		}
-		
-		if(compileDebugInfo){
-			Mesh[] out = new Mesh[]{new Mesh(),new Mesh(),new Mesh(),new Mesh()};
-			FloatBuffer extraNormals = BufferUtils.createFloatBuffer(this.vertexNormals.size()*3*2);
-			FloatBuffer extraTangents = BufferUtils.createFloatBuffer(this.vertexTangents.size()*3*2);
-			FloatBuffer extraBitangents = BufferUtils.createFloatBuffer(this.vertexTangents.size()*3*2);
-			//Gen extra info
-			for(int i = 0; i < this.vertexTangents.size(); i++){
-				Vector3f vv = this.verticies.get(i);
-				Vector3f n = this.vertexNormals.get(i);
-				Vector3f vf = vertexTangents.get(i);
-				Vector3f bi=n.cross(vf).mult(.25f).add(vv);
-				Vector3f tan = vf.mult(.25f).add(vv);
-				Vector3f norm = n.mult(.25f).add(vv);
-				extraTangents.put(vv.x);
-				extraTangents.put(vv.y);
-				extraTangents.put(vv.z);
-				extraNormals.put(vv.x);
-				extraNormals.put(vv.y);
-				extraNormals.put(vv.z);
-				extraBitangents.put(vv.x);
-				extraBitangents.put(vv.y);
-				extraBitangents.put(vv.z);
+			
+			if(compileDebugInfo){
+				v = v.add(n.mult(.05f));
+				Vector3f bi=n.cross(t).mult(1f).add(v);
+				Vector3f tan = t.mult(1f).add(v);
+				Vector3f norm = n.mult(1f).add(v);
+				
+				extraTangents.put(v.x);
+				extraTangents.put(v.y);
+				extraTangents.put(v.z);
+				
+				extraNormals.put(v.x);
+				extraNormals.put(v.y);
+				extraNormals.put(v.z);
+				
+				extraBitangents.put(v.x);
+				extraBitangents.put(v.y);
+				extraBitangents.put(v.z);
 				
 				extraTangents.put(tan.x);
 				extraTangents.put(tan.y);
@@ -122,9 +155,19 @@ public class MeshOutput {
 				extraBitangents.put(bi.x);
 				extraBitangents.put(bi.y);
 				extraBitangents.put(bi.z);
+				
+				
+				
 			}
 			
-			out[0].setBuffer(Type.Index, 3, indicies);
+			
+		}
+		
+		
+		if(compileDebugInfo){
+			Mesh[] out = new Mesh[]{new Mesh(),new Mesh(),new Mesh(),new Mesh()};
+			
+//			out[0].setBuffer(Type.Index, 3, indicies);
 			out[0].setBuffer(Type.Position, 3, verticies);
 			out[0].setBuffer(Type.Normal, 3, normals);
 			out[0].setBuffer(Type.Tangent, 4, tangents);
@@ -146,18 +189,13 @@ public class MeshOutput {
 		
 	}
 	
-	
-	
-	public Vector3f windingQuadToTriangle(Vector3f v1,Vector3f v2,Vector3f v3,  boolean support){
+	public Vector3f addTriangle(Vector3f v1,Vector3f v2,Vector3f v3,  boolean support){
 		boolean invalid = fuzzyEquals(v1, v2) || fuzzyEquals(v2, v3) || fuzzyEquals(v1, v3);
 		if (invalid) {
 			return null;
 		}
 
 		Vector3f lNormal;
-//		Vector2f uv0 = new Vector2f();
-//		Vector2f uv1 = new Vector2f();
-//		Vector2f uv2 = new Vector2f();
 		Vector3f tangent = new Vector3f();
 		Vector3f biTangent = new Vector3f();
 
@@ -206,11 +244,11 @@ public class MeshOutput {
 			//Y,Z dom -
 			
 			if (Math.abs(normal.y) > Math.abs(normal.x)) {// y dominate
-				if(Math.abs(normal.z) > Math.abs(normal.x)){
+//				if(Math.abs(normal.z) > Math.abs(normal.x)){
 					store.set(v1.x, v1.z);
-				}else{
-					store.set(v1.z, v1.x);
-				}
+//				}else{
+//					store.set(v1.z, v1.x);
+//				}
 				
 			} else {// x dominate
 				store.set(v1.y, v1.z);
@@ -269,6 +307,10 @@ public class MeshOutput {
 		}else{
 			return false;
 		}
+	}
+	
+	private float dot(Vector4f v1, Vector4f v2){
+		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 	}
 	
 }
