@@ -39,5 +39,6 @@ public class CameraInfo {
 //			}
 	}
 	
+//	public boolean remeshChunk(OctreeNode node, int numVertsChanged)
 	
 }
