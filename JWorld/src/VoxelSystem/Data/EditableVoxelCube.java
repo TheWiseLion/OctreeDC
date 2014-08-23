@@ -21,4 +21,6 @@ public interface EditableVoxelCube extends VoxelCube{
 	 * Returns true if there has been a change in value
 	 */
 	public boolean setIntersection(int edgeNum, Float value);
+	
+//	public boolean set(VoxelCube vc);
 }

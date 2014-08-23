@@ -53,7 +53,7 @@ public class NoiseShape extends VolumeShape{
 		
 		int octaves = 1;
 		
-		float amplitude = 150;//1.70f;
+		float amplitude = 200;//1.70f;
 		
 		
 		float baseFreq = 500f;

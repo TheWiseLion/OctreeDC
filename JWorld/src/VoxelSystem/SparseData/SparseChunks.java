@@ -5,15 +5,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import VoxelSystem.VoxelSystemTables;
 import VoxelSystem.Data.CollapsePolicy;
 import VoxelSystem.Data.Storage.BasicVoxelTree;
 import VoxelSystem.Data.Storage.OctreeNode;
 import VoxelSystem.Data.VoxelExtraction.StrictOctreeExtractor;
 import VoxelSystem.Data.VoxelExtraction.VoxelExtractor;
 import VoxelSystem.Misc.CameraInfo;
+import VoxelSystem.Misc.Utils;
 import VoxelSystem.SparseData.ChunkData.Chunk;
-import VoxelSystem.SparseData.ChunkData.RenderNode;
+import VoxelSystem.meshing.DualContourMesh;
+import VoxelSystem.meshing.VoxelMesh;
 
 import com.jme3.bounding.BoundingBox;
 import com.jme3.math.Vector3f;
@@ -22,7 +23,7 @@ import com.jme3.scene.Mesh.Mode;
 import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.util.BufferUtils;
 
-public class BasicDataLayer implements SparseInterface{
+public class SparseChunks implements SparseInterface{
 	private float minVoxelSize;
 	private int maxDepth;
 	
@@ -31,7 +32,7 @@ public class BasicDataLayer implements SparseInterface{
 	private List<Chunk> dirtyChunks;
 	
 	private final float chunkSize;//currently cubic in nature. 
-	private final int CHUNK_DIM = 512;
+	private final int CHUNK_DIM;
 	private final int bitOffSet = 10;
 	private final int CHUNK_MASK = 0x3FF;//10 bits -> 1024 chunks
 	private final int CHUNK_OFF = CHUNK_MASK/2;
@@ -40,11 +41,16 @@ public class BasicDataLayer implements SparseInterface{
 	private VoxelExtractor globalExtractor;
 	private int depth = 0;
 	
-	public BasicDataLayer(float minVoxelSize, CollapsePolicy cp){
+	public SparseChunks(float minVoxelSize, float maxVoxelSize,CollapsePolicy cp){
 		//make each chunk 512x512x512 of base depth
+		minVoxelSize = Utils.roundNearestPow2(minVoxelSize);
+		maxVoxelSize = Utils.roundNearestPow2(maxVoxelSize);
+		
 		this.minVoxelSize = minVoxelSize;
-		this.maxDepth = 8;
-		chunkSize = CHUNK_DIM*minVoxelSize;
+		this.maxDepth = (int) ((Math.log(maxVoxelSize)/Math.log(2)) - (Math.log(minVoxelSize)/Math.log(2)));
+		//Ehhhhh
+		CHUNK_DIM = (int) Math.pow(2,maxDepth);
+		chunkSize = (float) (CHUNK_DIM*minVoxelSize);
 		dirtyChunks = new ArrayList<Chunk>();
 		trackedChunks = new HashMap<Chunk,ChunkRequester>();
 		octreeChunks = new HashMap<Integer,Chunk>();
@@ -96,56 +102,6 @@ public class BasicDataLayer implements SparseInterface{
 	public Vector3f getChunkSize() {
 		return new Vector3f(chunkSize,chunkSize,chunkSize);
 	}
-
-//	public void applyOperation(CSGOperator operator, BoundingBox bv, int level, VoxelExtractor ... args){
-//		if(bv == null){
-//			throw new RuntimeException("Hold on!");
-//		}else{
-//			//Build Maximal Bounding Box by iterative search
-//			//Start at center and iterate outward by chunk...
-//			List<Integer> keys = getIntersectingChunks(bv);
-//			for(Integer key : keys){
-//				Chunk c = this.octreeChunks.get(key);
-//				if(c == null){
-//					c = createChunkFromHash(key);
-//					this.octreeChunks.put(key, c);
-//				}
-//				
-//				
-//				//
-//				//Not sure..
-//				//Should do operator.operate(this.getVoxelExtractor(),otherArgs)
-//				//Which then outputs a bounding volume...
-//				//
-//				VoxelExtractor [] args2;
-//				if(args != null){
-//					args2 = new VoxelExtractor[args.length+1]; 
-//					
-//					for(int i = 0; i< args.length; i++){
-//						args2[i+1]=args[i];
-//					}
-//				}else{
-//					args2 = new VoxelExtractor[1];
-//				}
-//				args2[0] = c.getExtractor();
-//				VoxelExtractor ve = operator.operate(args2);
-//				//TODO: do during update!!
-//				BoundingBox intersection = new BoundingBox();
-//				BoundingBox chunk = new BoundingBox();
-//				float f = c.getChunkContents().getCubeLength();
-//				chunk.setCenter(c.getChunkContents().getCorner().add(f,f,f));
-//				chunk.setXExtent(f/2f);chunk.setYExtent(f/2f);chunk.setZExtent(f/2f);
-//				CSGHelpers.getIntersection(bv,chunk, intersection);
-//				c.getChunkContents().extractVoxelData(ve, level, intersection, cp);
-//				c.setExtractor(new StrictOctreeExtractor(c.getChunkContents()));
-//				//
-//				//
-//				
-//				dirtyChunks.add(c);
-//			}
-//			
-//		}
-//	}
 	
 	public void set(VoxelExtractor ve, int depth){
 		if(depth > maxDepth){
@@ -170,30 +126,7 @@ public class BasicDataLayer implements SparseInterface{
 		}
 		dirtyChunks.clear();
 	}
-	
-	public Mesh getOctreeMesh(boolean onlyLeaves,boolean onlyChunks, CameraInfo cI){
-		Mesh m = new Mesh();
-		m.setMode(Mode.Lines);
-		ArrayList<Vector3f> children = new ArrayList<Vector3f>();
-		for(Chunk c : this.trackedChunks.keySet()){
-			recursiveGrabTree(c.getChunkContents(), onlyLeaves, onlyChunks, cI, children);
-		}
-		m.setBuffer(Type.Position, 3,  BufferUtils.createFloatBuffer(children.toArray(new Vector3f[0])) );
-		return m;
-		
-	}
-	
-	public Mesh getOctreeVerts(float f){
-		Mesh m = new Mesh();
-		m.setMode(Mode.Points);
-		ArrayList<Vector3f> children = new ArrayList<Vector3f>();
-		for(Chunk c : this.trackedChunks.keySet()){
-			recursiveGrabPoint(c.getChunkContents(), children,f);
-		}
-		m.setBuffer(Type.Position, 3,  BufferUtils.createFloatBuffer(children.toArray(new Vector3f[0])) );
-		m.setPointSize(5f);
-		return m;
-	}
+
 	
 	
 	
@@ -274,7 +207,7 @@ public class BasicDataLayer implements SparseInterface{
 	//Internal Implementation of chunk
 	private class BasicChunk extends Chunk{
 		ChunkState state;
-		RenderNode rn;
+		VoxelMesh rn;
 		OctreeNode node;
 		VoxelExtractor ve;
 		int hash;
@@ -282,7 +215,7 @@ public class BasicDataLayer implements SparseInterface{
 			super(x,y,z);
 			state = ChunkState.NONE;
 			this.hash = hashCode;
-			rn = new RenderNode();
+			rn = new DualContourMesh();
 			
 		}
 		
@@ -299,7 +232,7 @@ public class BasicDataLayer implements SparseInterface{
 		@Override
 		public void setChunkContents(OctreeNode contents) {
 			this.node = contents;
-			rn.node = contents;
+//			rn.node = contents;
 		}
 	
 		@Override
@@ -308,7 +241,7 @@ public class BasicDataLayer implements SparseInterface{
 		}
 	
 		@Override
-		public RenderNode getRenderNode() {
+		public VoxelMesh getRenderNode() {
 			return rn;
 		}
 		
@@ -328,51 +261,7 @@ public class BasicDataLayer implements SparseInterface{
 		}
 	}
 
-	/**
-	 * Helper for displaying debug info from currently tracked octree's
-	 */
-	private void recursiveGrabPoint(OctreeNode node, ArrayList<Vector3f> points,  float f){
-		if(node.isLeaf() ){//|| node.getGeometricError() < f
-			if(node.getIsopoint() != null){
-				points.add(node.getIsopoint());
-			}
-		}else{
-			for(OctreeNode c : node.getChildren()){
-				recursiveGrabPoint(c, points,f);
-			}
-		}
-	}
-	
-	/**
-	 * Helper for displaying debug info from currently tracked octree's
-	 */
-	private void recursiveGrabTree(OctreeNode node, boolean onlyLeaves, boolean onlyChunks,CameraInfo cI, ArrayList<Vector3f> points){
-		if(onlyChunks || node.isLeaf()||cI.shouldBeLeaf(node)){
-			if(onlyLeaves){
-				if(node.getIsopoint() != null){
-					
-					for(int i =0; i<12; i++){ //draw all edges :D
-						int p1 = VoxelSystemTables.iTable[i*2];
-						int p2 = VoxelSystemTables.iTable[i*2 + 1];
-						points.add(node.getCorner(p1, new Vector3f()));
-						points.add(node.getCorner(p2, new Vector3f()));
-					}
-					
-				}
-			}else{
-				for(int i =0; i<12; i++){ //draw all edges :D
-					int p1 = VoxelSystemTables.iTable[i*2];
-					int p2 = VoxelSystemTables.iTable[i*2 + 1];
-					points.add(node.getCorner(p1, new Vector3f()));
-					points.add(node.getCorner(p2, new Vector3f()));
-				}
-			}
-		}else{
-			for(OctreeNode c : node.getChildren()){
-				recursiveGrabTree(c, onlyLeaves,onlyChunks,cI,points);
-			}
-		}
-	}
+
 
 
 	@Override

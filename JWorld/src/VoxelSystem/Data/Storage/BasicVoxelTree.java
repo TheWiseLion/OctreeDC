@@ -2,6 +2,7 @@ package VoxelSystem.Data.Storage;
 
 import VoxelSystem.VoxelSystemTables;
 import VoxelSystem.VoxelSystemTables.AXIS;
+import VoxelSystem.Data.VoxelCube;
 
 import com.jme3.math.Vector3f;
 
@@ -11,6 +12,8 @@ public class BasicVoxelTree extends OctreeNode{
 	Vector3f [] normals;
 	float [] intersections;
 
+	//Edge mask
+	
 	public BasicVoxelTree(Vector3f lowestCorner,float length, int depth){
 		super(lowestCorner, length, depth);
 		 materials = new int[]{
@@ -103,6 +106,7 @@ public class BasicVoxelTree extends OctreeNode{
 		intersections[edgeNum] = value;
 		return change;
 	}
+	
 	
 	/**
 	 * boiler

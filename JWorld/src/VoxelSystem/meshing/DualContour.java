@@ -1,52 +1,26 @@
-package VoxelSystem.SurfaceExtractors;
+package VoxelSystem.meshing;
+
 
 import java.util.ArrayList;
 import java.util.List;
 
 import VoxelSystem.VoxelSystemTables.AXIS;
 import VoxelSystem.Data.Storage.OctreeNode;
-import VoxelSystem.Misc.CameraInfo;
 import VoxelSystem.Misc.MeshInterface;
-import VoxelSystem.Misc.MeshOutput;
+import VoxelSystem.SparseData.controller.LODController;
 import VoxelSystem.VoxelMaterials.MaterialRegistry;
 
 import com.jme3.math.Vector3f;
 
 public class DualContour{
-	//To start:
-	// 1 mesh per octree (LOD based?)
-	
-	//Look into unsafe topological down sample
-	//Any way to easily correct? perhaps a way to force topological correctness at some level or a way to march over and fix concerned area 
-	
-	//Then do marching skirts between them (learning)
-	
-	
-	
-	//Then consider diverging data layer and render layer (dynamic chunk size)
-	
-	//Next:
-	//Split s.t. mesh can be generated from child
-	//Skirts between them?
-	
-	//Split meshes based vertex numbers
-	//only need to recompute parts of meshes that have changed
-	
-	//Has a current set of meshes
-	//Needs to figure out which need to get thrown out or recomputed
-	
-	//# of meshes ~= verticies/200
-	
-	
-	
-    /**
+	/**
      * Recursive polygonisation function that handles cubes and, if the cube is
      * not a leaf of the octree, calls other functions on its subcells, edges
      * and faces.
      *
      * @param q is an octree node to process.
      */
-    public static void cellProc(OctreeNode q, CameraInfo cI, MeshInterface meshes, MaterialRegistry mr)
+    public static void cellProc(OctreeNode q, LODController cI, MeshInterface meshes, MaterialRegistry mr)
     {
         if (q != null && !isLeaf(q,cI)){ //if !leaf or geometric error ('effectively leaf')
         
@@ -96,7 +70,7 @@ public class DualContour{
      * @param q2 is its neighbour.
      * @param axis is the axis of the face.
      */
-    public static void faceProc(OctreeNode q1, OctreeNode q2, AXIS a, CameraInfo cI, MeshInterface meshes, MaterialRegistry mr){
+    public static void faceProc(OctreeNode q1, OctreeNode q2, AXIS a, LODController cI, MeshInterface meshes, MaterialRegistry mr){
 		if(q1 != null && q2 != null && (!isLeaf(q1, cI) ||  !isLeaf(q2, cI)) ){
 			//Awkward statement but if we want it to be a leaf from the perspective of the camera then make it a leaf (w/o editing data of course)
 			OctreeNode[] kids1 = q1.getChildren()==null || isLeaf(q1, cI) ?new OctreeNode[]{q1,q1,q1,q1,q1,q1,q1,q1}:q1.getChildren();
@@ -151,7 +125,7 @@ public class DualContour{
 	}
 
 
-    public static void edgeProc(OctreeNode q0,OctreeNode q1,OctreeNode q2,OctreeNode q3, AXIS a, CameraInfo cI,MeshInterface meshes, MaterialRegistry mr){
+    public static void edgeProc(OctreeNode q0,OctreeNode q1,OctreeNode q2,OctreeNode q3, AXIS a, LODController cI,MeshInterface meshes, MaterialRegistry mr){
 		  if (q0 != null && q1 != null && q2 != null && q3 != null){
 	            // If all cubes are leaves, stop recursion.
 	            if (isLeaf(q0, cI) && isLeaf(q1, cI) && isLeaf(q2, cI) && isLeaf(q3, cI)){
@@ -189,17 +163,20 @@ public class DualContour{
 	            		//Get Smallest of Nodes
 	            		//if all smallest of nodes have proper edges...
 	            		for(int i=0;i<4;i++){
-	            			if((nodes[i].getCubeLength() < q.getCubeLength() && nodes[i].getIsopoint()!=null)
-	            					|| q.getIsopoint() == null ){
+	            			if(nodes[i].getCubeLength() < q.getCubeLength()){
 	            				nodeIndex = i;
 	            				q = nodes[i];
 	            				qs.clear();
 	            				qs.add(nodes[i]);
-	            			}else if(nodes[i].getCubeLength() == q.getCubeLength() && nodes[i].getIsopoint()!=null){
+	            			}else if(nodes[i].getCubeLength() == q.getCubeLength() && nodes[i].getIsopoint()==null){
 	            				qs.add(nodes[i]);
 	            			}
 	            		}
-	            		
+	            		for(OctreeNode nod:qs){
+	            			if(nod.getIsopoint() == null){
+	            				return;
+	            			}
+	            		}
 
 		            		if(q.getType(qr[nodeIndex*2]) != q.getType(qr[nodeIndex*2+1])){
 					            		boolean subSurfaceIntersection = false;
@@ -301,7 +278,7 @@ public class DualContour{
 	}
 	
 	
-	public static boolean isLeaf(OctreeNode n, CameraInfo cI){
+	public static boolean isLeaf(OctreeNode n, LODController cI){
 		return n.isLeaf() || cI.shouldBeLeaf(n);// || n.getGeometricError() < geoError;
 	}
 	

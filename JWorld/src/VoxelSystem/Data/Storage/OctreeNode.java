@@ -23,6 +23,7 @@ public abstract class OctreeNode implements EditableVoxelCube{
 	private float isopointError;
 	
 	private float geometricError;
+	
 	//Octree Data
 	protected final Vector3f minBound;
 	protected float length; //cube length
@@ -30,6 +31,7 @@ public abstract class OctreeNode implements EditableVoxelCube{
 	protected boolean topologicallySafe;
 	
 	protected boolean dirty;//Voxel data of children have changed
+	
 	protected OctreeNode[] children;
 
 	

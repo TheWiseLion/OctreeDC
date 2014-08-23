@@ -45,7 +45,7 @@ public class Materials {
     	for(Texture t : textures){
     		t.setWrap(WrapMode.Repeat);
     		t.setMinFilter(MinFilter.Trilinear);
-    		t.setAnisotropicFilter(4);
+    		t.setAnisotropicFilter(16);
     	}
     	
     	//Initialize Materials:

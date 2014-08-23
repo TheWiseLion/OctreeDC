@@ -1,9 +1,9 @@
 package VoxelSystem;
 
 import VoxelSystem.Misc.BasicCollapsePolicy;
-import VoxelSystem.SparseData.BasicDataLayer;
-import VoxelSystem.SparseData.VoxelMesher;
+import VoxelSystem.SparseData.SparseChunks;
 import VoxelSystem.VoxelMaterials.MaterialRegistry;
+import VoxelSystem.meshing.VoxelMeshing;
 
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
@@ -16,36 +16,33 @@ import com.jme3.scene.Node;
  */
 public class VoxelObject {
 	
-	BasicDataLayer voxelData;
-	VoxelMesher meshData;
+	SparseChunks voxelData;
+	VoxelMeshing meshData;
 	Node meshCollection;
 	MaterialRegistry materials;
-	private boolean test = false;
 	
-	public VoxelObject(float miniumVoxelSize, Vector3f viewDistance, float LODSpeed){
-		voxelData = new BasicDataLayer(miniumVoxelSize, new BasicCollapsePolicy(.00025f));
-		meshData = new VoxelMesher(viewDistance, LODSpeed);
+	
+	public VoxelObject(float miniumVoxelSize, float maxVoxelSize){
+		voxelData = new SparseChunks(miniumVoxelSize, maxVoxelSize,new BasicCollapsePolicy(.00005f));
+		meshData = new VoxelMeshing();
 		meshCollection = new Node();
 	}
 	
 	public Node getObjectNode(){
 		return meshCollection;
 	}
-
-	public void update(Vector3f camera){
-		meshData.updateCameraInfo(camera, voxelData, meshCollection);
-//		if(!test){
-			voxelData.update();
-//			test = true;
-//		}
-		meshData.update(materials, voxelData, meshCollection);
+	
+	public void update(){
+		meshData.update(voxelData, meshCollection);
+		voxelData.update();
+		meshData.updateMeshes(voxelData, materials, meshCollection);
 	}
 	
-	public VoxelMesher getMesher(){
+	public VoxelMeshing getMesher(){
 		return meshData;
 	}
 	
-	public BasicDataLayer getVoxelData(){
+	public SparseChunks getVoxelData(){
 		return voxelData;
 	}
 	

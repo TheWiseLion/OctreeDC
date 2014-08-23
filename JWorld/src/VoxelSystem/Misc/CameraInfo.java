@@ -1,44 +1,47 @@
 package VoxelSystem.Misc;
 
-import VoxelSystem.Data.Storage.OctreeNode;
-
+import com.jme3.bounding.BoundingBox;
 import com.jme3.math.Vector3f;
 
+/**
+ * Very simple class that holds view box.
+ * Its very questionable whether or not this is actually needed.
+ * Might be useful if more info is ever needed.
+ *
+ */
 public class CameraInfo {
-	public Vector3f position;
-	public Vector3f viewDistance;
-	float baseError;
-	float fallOffSpeed;
-	public float recomputeThreshold = 10f;
-	// ErrorNode = max(Distance/fallOffSpeed, 1) * baseError
+	private volatile BoundingBox viewBox;
 	
-	public boolean shouldBeLeaf(OctreeNode n){
-		float f = n.getCubeLength()/2f;
-		Vector3f v = n.getCorner().add(f, f, f).subtract(position);
-		float dSquard = v.lengthSquared() * v.lengthSquared();
-
-		float error = Math.min(dSquard / 1000f * .0001f, .1f);
-//		// .001 every 100 meters
-//
-//		if(!n.isLeaf()){
-//		 System.out.println("Error Check: "+error+" vs "+n.getGeometricError()+" vs "+dSquard+" vs "+dSquard/1000f);
-//		}
-		
-//		if (error > n.getGeometricError() && n.topographicallySafe()) {
-//			return true;
-//		} else {
-			return false;
-//		}
-		
-//			int maxDepth = (int) Math.max(1, 8 - dSquard/10000f);
-////			System.out.println(maxDepth);
-//			if(n.getDepth() > maxDepth && n.topographicallySafe()){
-//				return true;
-//			}else{
-//				return false;
-//			}
+	public CameraInfo(){
+		viewBox =new BoundingBox();
 	}
 	
-//	public boolean remeshChunk(OctreeNode node, int numVertsChanged)
+	public Vector3f getPosition(Vector3f store){
+		viewBox.getCenter(store);
+		return store;
+	}
 	
+	
+	public void setPosition(Vector3f pos){
+		viewBox.setCenter(pos);
+	}
+	
+	public Vector3f getViewDistance(Vector3f store){
+		return viewBox.getExtent(store).multLocal(2);
+	}
+	
+	public void setViewDistance(Vector3f viewDistance){
+		viewBox.setXExtent(viewDistance.x);
+		viewBox.setYExtent(viewDistance.y);
+		viewBox.setZExtent(viewDistance.z);
+		
+	}
+	
+	public BoundingBox getViewBox(BoundingBox out){
+		out.setCenter(viewBox.getCenter());
+		out.setXExtent(viewBox.getXExtent());
+		out.setYExtent(viewBox.getYExtent());
+		out.setZExtent(viewBox.getZExtent());
+		return out;
+	}
 }

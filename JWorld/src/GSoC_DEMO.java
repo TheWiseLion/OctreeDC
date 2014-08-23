@@ -48,11 +48,9 @@ import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
-import com.jme3.post.filters.LightScatteringFilter;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
-import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Box;
 import com.jme3.shadow.DirectionalLightShadowRenderer;
 import com.jme3.shadow.EdgeFilteringMode;
@@ -61,7 +59,6 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.WrapMode;
 import com.jme3.util.SkyFactory;
-import com.jme3.water.WaterFilter;
 
 
 public class GSoC_DEMO extends SimpleApplication {
@@ -93,9 +90,11 @@ public class GSoC_DEMO extends SimpleApplication {
     	flyCam.setMoveSpeed(50);
         cam.setLocation(new Vector3f(14.81f,2.7f,14.4f));
         cam.setFrustumFar(10000);
+        
         //PHYSICS SETUP//
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
+        
         //Basic world bounds
         bulletAppState.setWorldMin(new Vector3f(1000,1000,1000));
         bulletAppState.setWorldMin(new Vector3f(-1000,-1000,-1000));
@@ -106,18 +105,20 @@ public class GSoC_DEMO extends SimpleApplication {
         
 		BoxVolume bv = new BoxVolume(new Vector3f(20,20,20),10,10,10);
 		
-		SphereVolume sv = new SphereVolume(new Vector3f(256,256,256),20f);
+		SphereVolume sv = new SphereVolume(new Vector3f(10,10,10),20f);
 		
 		
-		vbo = new VoxelObject(.5f,new Vector3f(5000,200,5000),100f);
+		vbo = new VoxelObject(.5f,32f);
 		
 		vbo.setMaterialRegistry(materialTypes);
-		vbo.getVoxelData().set(new VoxelConverter(new NoiseShape(.5f)),5);
+		vbo.getVoxelData().set(new VoxelConverter(new NoiseShape(.5f)),2);
 //		vbo.getVoxelData().set(new VoxelConverter(bv),6);
-//		vbo.getVoxelData().set(new VoxelConverter(sv),6);
-		vbo.update(new Vector3f(20,20,20));
+//		vbo.getVoxelData().set(new VoxelConverter(sv),7);
+		vbo.getMesher().getCameraInfo().setViewDistance(new Vector3f(100,100,100));
+		vbo.update();
+		
 		rootNode.attachChild(vbo.getObjectNode());
-		vbo.getMesher().getCameraInfo().viewDistance = new Vector3f(100,100,100);
+//		vbo.getMesher().getCameraInfo().viewDistance = new Vector3f(100,100,100);
         
 //		vbo.set(new VoxelConverter(sv),7);
 //		List<Vector3f> points =  vbo.update();
@@ -205,8 +206,10 @@ public class GSoC_DEMO extends SimpleApplication {
         selectedMaterialN.setText("Selected Material: "+selectedMaterial);
         counter+=tpf;
         selectedMaterial = selectedMaterial%6;
+        vbo.getMesher().getCameraInfo().setPosition(cam.getLocation());
+        vbo.update();
 //        List<Mesh> m = vbo.update(new Vector3f(65,65,65));
-        vbo.update(new Vector3f(cam.getLocation()));
+//        vbo.update(new Vector3f(cam.getLocation()));
 //        rootNode.detachChild(vbo.getObjectNode());
 //        rootNode.attachChild(vbo.getObjectNode());
         
@@ -222,34 +225,39 @@ public class GSoC_DEMO extends SimpleApplication {
       rootNode.addLight(sun2);
       
       /* Drop shadows */
-      final int SHADOWMAP_SIZE=1024;
-      DirectionalLightShadowRenderer dlsr = new DirectionalLightShadowRenderer(assetManager, SHADOWMAP_SIZE, 3);
-      dlsr.setLight(sun2);
-      dlsr.setShadowIntensity(.25f);
-      viewPort.addProcessor(dlsr);
-      dlsr.setEnabledStabilization(true);
-      dlsr.setEdgeFilteringMode(EdgeFilteringMode.PCFPOISSON);
-      dlsr.setEdgesThickness(2);
-      dlsr.setLambda(1.03f);
-      
+//      final int SHADOWMAP_SIZE=1024;
+//      DirectionalLightShadowRenderer dlsr = new DirectionalLightShadowRenderer(assetManager, SHADOWMAP_SIZE, 3);
+//      dlsr.setLight(sun2);
+//      dlsr.setShadowIntensity(.25f);
+//      
+//      dlsr.setEnabledStabilization(true);
+//      dlsr.setEdgeFilteringMode(EdgeFilteringMode.PCFPOISSON);
+//      dlsr.setEdgesThickness(2);
+//      dlsr.setLambda(1.03f);
+//      viewPort.addProcessor(dlsr);
       
       FilterPostProcessor fpp;
       fpp = new FilterPostProcessor(assetManager);
       
-      LightScatteringFilter filter = new LightScatteringFilter(sun2.getDirection().mult(-3000));
-      filter.setEnabled(true);
-      filter.setLightDensity(.25f);
+//      LightScatteringFilter filter = new LightScatteringFilter(sun2.getDirection().mult(-3000));
+//      filter.setEnabled(true);
+//      filter.setLightDensity(.25f);
 //    filter.setLightDensity(f);
 //    LightScatteringUI ui = new LightScatteringUI(inputManager, filter);
-      fpp.addFilter(filter);
+//      fpp.addFilter(filter);
 //      
-   
-      WaterFilter water;
-      float initialWaterHeight = -2f;
-      water = new WaterFilter(rootNode, sun2.getDirection());
-      water.setWaterHeight(initialWaterHeight);
-      fpp.addFilter(water);
-      viewPort.addProcessor(fpp);
+//      FilterPostProcessor fpp2 = new FilterPostProcessor(assetManager);
+//      SSAOFilter ssaoFilter = new SSAOFilter(12.940201f, 43.928635f, 0.32999992f, 0.6059958f);
+////      ssaoFilter.setSampleRadius(2);
+//      fpp2.addFilter(ssaoFilter);
+//      viewPort.addProcessor(fpp2);
+      
+//      WaterFilter water;
+//      float initialWaterHeight = -2f;
+//      water = new WaterFilter(rootNode, sun2.getDirection());
+//      water.setWaterHeight(initialWaterHeight);
+//      fpp.addFilter(water);
+//      viewPort.addProcessor(fpp);
       
       
 //      FogFilter fog=new FogFilter();
@@ -298,7 +306,7 @@ public class GSoC_DEMO extends SimpleApplication {
       editorMode.setLocalTranslation((int)(settings.getWidth()-settings.getWidth()*.4f),selectedMaterialN.getLineHeight() + editorMode.getLineHeight() + 10, 0);
       
       direction = new BitmapText(guiFont, false);
-      direction.setLocalTranslation(0,settings.getHeight()-position.getLineHeight(), 0);
+      direction.setLocalTranslation(0, settings.getHeight() - position.getLineHeight(), 0);
       
       guiNode.attachChild(editorMode);
       guiNode.attachChild(selectedMaterialN);
@@ -318,7 +326,7 @@ public class GSoC_DEMO extends SimpleApplication {
 		settings.setTitle("Dual Contouring Demo");
 //		settings.put
 //		settings.set
-		settings.setResolution(800, 600);
+		settings.setResolution(1600, 900);
 		showSettings = false;
 //		 re-setting settings they can have been merged from the registry.
 		setSettings(settings);
