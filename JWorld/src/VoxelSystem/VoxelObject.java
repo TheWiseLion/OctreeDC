@@ -3,7 +3,7 @@ package VoxelSystem;
 import VoxelSystem.Misc.BasicCollapsePolicy;
 import VoxelSystem.SparseData.SparseChunks;
 import VoxelSystem.VoxelMaterials.MaterialRegistry;
-import VoxelSystem.meshing.VoxelMeshing;
+import VoxelSystem.meshing.lod.VoxelMeshing;
 
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;

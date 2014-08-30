@@ -13,8 +13,8 @@ import VoxelSystem.Data.VoxelExtraction.VoxelExtractor;
 import VoxelSystem.Misc.CameraInfo;
 import VoxelSystem.Misc.Utils;
 import VoxelSystem.SparseData.ChunkData.Chunk;
-import VoxelSystem.meshing.DualContourMesh;
-import VoxelSystem.meshing.VoxelMesh;
+import VoxelSystem.meshing.lod.DualContourMesh;
+import VoxelSystem.meshing.lod.VoxelMesh;
 
 import com.jme3.bounding.BoundingBox;
 import com.jme3.math.Vector3f;

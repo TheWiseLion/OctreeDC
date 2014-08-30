@@ -1,4 +1,4 @@
-package VoxelSystem.tmp;
+package VoxelSystem.meshing.lod;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,9 +14,6 @@ import VoxelSystem.SparseData.ChunkData.Chunk;
 import VoxelSystem.SparseData.controller.LODController;
 import VoxelSystem.VoxelMaterials.MaterialRegistry;
 import VoxelSystem.VoxelMaterials.VoxelMaterial;
-import VoxelSystem.meshing.lod.DualContour;
-import VoxelSystem.meshing.lod.VoxelMesh;
-import VoxelSystem.threading.GeometryManager;
 
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
@@ -31,7 +28,7 @@ import com.jme3.scene.Node;
  * nearest adjacent and diagonal chunks
  * 
  */
-public class DualContourMesh extends RenderNode{
+public class DualContourMesh implements VoxelMesh{
 	private boolean dirtyCell; //Cell needs to be remeshed
 	private boolean dirtyEdge; //edge normals need to be recalculated
 	private boolean incorrectEdge; //edge triangles need to be recomputed
@@ -49,8 +46,7 @@ public class DualContourMesh extends RenderNode{
 	Map<Integer, MeshOutput> interTriangles;
 	
 	
-	public DualContourMesh(OctreeNode data){
-		super(data);
+	public DualContourMesh(){
 		cellData = new ArrayList<Geometry>();
 		edgeData = new ArrayList<Geometry>();
 		interiorTriangles = new HashMap<Integer,MeshOutput>();
@@ -61,23 +57,28 @@ public class DualContourMesh extends RenderNode{
 	}
 	
 	@Override
-	public void deleteMesh(GeometryManager gm) {
-		gm.queueDelete(cellData);
-		gm.queueDelete(edgeData);
+	public void deleteMesh(Node root) {
+		for(Geometry g : cellData){
+			root.detachChild(g);
+		}
+		
+		for(Geometry g : edgeData){
+			root.detachChild(g);
+		}
 	}
 
 
 
 	@Override
-	public void updateFromAdjacentNode(int dx, int dy, int dz, RenderNode rn) {
+	public void updateFromAdjacentNode(int dx, int dy, int dz, VoxelMesh rn) {
 		int count = 0;
-		if(dx>0){count++;};
-		if(dy>0){count++;};
-		if(dz>0){count++;};
-		if(count == 1){
+		if(dx != 0){count++;};
+		if(dy != 0){count++;};
+		if(dz != 0){count++;};
+//		if(count == 1){
 			incorrectEdge = true;
-		}
-		dirtyEdge = false;
+//		}
+		dirtyEdge = true;
 	}
 
 	/***
@@ -106,16 +107,16 @@ public class DualContourMesh extends RenderNode{
 
 
 	@Override
-	public void genCell(OctreeNode c, AdaptiveMeshInterface sdi, LODController lod) {
+	public void genCell(Chunk c, SparseInterface sdi, LODController lod) {
 		//if node is dirty...
-		int leafCount = getLeafCount(c, lod);
+		int leafCount = getLeafCount(c.getChunkContents(), lod);
 		int diff = Math.abs(leafCount - lastLeafCount);
-
-		if (lod.shouldRemesh(leafCount, c)) {
+		
+		if (lod.shouldRemesh(leafCount, diff, c.getChunkContents())) {
 			interiorTriangles.clear();
 			interiorInterTriangles.clear();
-			
-			final OctreeNode root = c;
+
+			final OctreeNode root = c.getChunkContents();
 			MeshInterface mI = new MeshInterface(){
 				@Override
 				public void addTriangle(OctreeNode v1, OctreeNode v2, OctreeNode v3, int material, AXIS axis) {
@@ -125,10 +126,10 @@ public class DualContourMesh extends RenderNode{
 					//else
 						//add to interior triangles
 					if(onFace(root, v1)|| onFace(root, v2)|| onFace(root, v3)){
-						DualContourMesh.addTriangle(v1, v2, v3, material, interiorTriangles, true);
+//						DualContourMesh.addTriangle(v1, v2, v3, material, interiorTriangles, true);
 						DualContourMesh.addTriangle(v1, v2, v3, material, interiorInterTriangles, false);
 					}else{
-						DualContourMesh.addTriangle(v1, v2, v3, material, interiorInterTriangles, true);
+//						DualContourMesh.addTriangle(v1, v2, v3, material, interiorInterTriangles, true);
 						DualContourMesh.addTriangle(v1, v2, v3, material, interiorTriangles, false);
 					}
 						
@@ -145,46 +146,57 @@ public class DualContourMesh extends RenderNode{
 							continue;
 						}
 						
-						RenderNode neighbor = sdi.getNeighbor(x, y, z, this);
+						Chunk neighbor = sdi.getChunk(c.cx + x, c.cy + y, c.cz + z);
 						if(neighbor != null){
-							neighbor.updateFromAdjacentNode(-x,-y,-z,this);
+							neighbor.getRenderNode().updateFromAdjacentNode(-x,-y,-z,this);
 						}
 						
 					}
 				}
 			}
 			
-			DualContour.cellProc(c, lod, mI, null);
+			//TODO: refactor + add comment..
+			for(Integer i : interiorTriangles.keySet()){
+				if(interiorTriangles.containsKey(i) && interiorInterTriangles.containsKey(i)){
+					MeshOutput intra = interiorTriangles.get(i);
+					MeshOutput inter = interiorInterTriangles.get(i);
+					intra.add(inter);
+					inter.add(intra);
+				}
+			}
+			
+			DualContour.cellProc(c.getChunkContents(), lod, mI, null);
 			dirtyCell = true;
 			dirtyEdge = true;
 			incorrectEdge = true;
+			lastLeafCount = leafCount;
 		}
 	}
 
 	@Override
-	public void genEdges(OctreeNode c, AdaptiveMeshInterface sdi, LODController lod) {
+	public void genEdges(Chunk c, SparseInterface sdi, LODController lod) {
 		if(incorrectEdge){
 			interTriangles.clear();
 			
 			//Mesh Chunk Edges
 			//X+
-			RenderNode cx = sdi.getNeighbor(1,0,0, this);
+			Chunk cx = sdi.getChunk(c.cx+1, c.cy, c.cz);
 			//Y+
-			RenderNode cy = sdi.getNeighbor(0, 1, 0, this);
+			Chunk cy = sdi.getChunk(c.cx, c.cy+1, c.cz);
 			//Z+
-			RenderNode cz = sdi.getNeighbor(0, 0, 1, this);
+			Chunk cz = sdi.getChunk(c.cx, c.cy, c.cz+1);
 			
-			RenderNode cxz = sdi.getNeighbor(1, 0, 1, this);
-			RenderNode cxy = sdi.getNeighbor(1, 1, 0, this);
-			RenderNode cyz = sdi.getNeighbor(0, 1, 1, this);
+			Chunk cxz = sdi.getChunk(c.cx+1, c.cy, c.cz+1);
+			Chunk cxy = sdi.getChunk(c.cx+1, c.cy+1, c.cz);
+			Chunk cyz = sdi.getChunk(c.cx, c.cy+1, c.cz+1);
 			
-			OctreeNode x = cx == null? null : cx.getRepresentedData();
-			OctreeNode y = cy == null? null : cy.getRepresentedData();
-			OctreeNode z = cz == null? null : cz.getRepresentedData();
+			OctreeNode x = cx == null? null : cx.getChunkContents();
+			OctreeNode y = cy == null? null : cy.getChunkContents();
+			OctreeNode z = cz == null? null : cz.getChunkContents();
 			
-			OctreeNode yz = cyz == null? null : cyz.getRepresentedData();
-			OctreeNode xz = cxz == null? null : cxz.getRepresentedData();
-			OctreeNode xy = cxy == null? null : cxy.getRepresentedData();
+			OctreeNode yz = cyz == null? null : cyz.getChunkContents();
+			OctreeNode xz = cxz == null? null : cxz.getChunkContents();
+			OctreeNode xy = cxy == null? null : cxy.getChunkContents();
 			
 			MeshInterface mI = new MeshInterface(){
 				@Override
@@ -195,47 +207,35 @@ public class DualContourMesh extends RenderNode{
 			};
 			
 			if(x != null){
-				cx.updateFromAdjacentNode(-1, 0, 0, this);
-				DualContour.faceProc(c,x,AXIS.X, lod, mI, null);
+				cx.getRenderNode().updateFromAdjacentNode(-1, 0, 0, this);
+				DualContour.faceProc(c.getChunkContents(),x,AXIS.X, lod, mI, null);
 			}
 
 			if(y != null){
-				cy.updateFromAdjacentNode(0, -1, 0, this);
-				DualContour.faceProc(c,y,AXIS.Y, lod, mI, null);
+				cy.getRenderNode().updateFromAdjacentNode(0, -1, 0, this);
+				DualContour.faceProc(c.getChunkContents(),y,AXIS.Y, lod, mI, null);
 			}
 
 			if(z != null){
-				cz.updateFromAdjacentNode(0, 0, -1, this);
-				DualContour.faceProc(c,z,AXIS.Z, lod, mI, null);
+				cz.getRenderNode().updateFromAdjacentNode(0, 0, -1, this);
+				DualContour.faceProc(c.getChunkContents(),z,AXIS.Z, lod, mI, null);
 			}
 
 
 			if(y !=null && yz!=null && z!=null){
-				cyz.updateFromAdjacentNode(0, -1, -1, this);
-				DualContour.edgeProc(c,y,yz,z,AXIS.X, lod, mI, null);
+				cyz.getRenderNode().updateFromAdjacentNode(0, -1, -1, this);
+				DualContour.edgeProc(c.getChunkContents(),y,yz,z,AXIS.X, lod, mI, null);
 			}
 			
 			if(x != null && xz !=null && z!=null){
-				cxz.updateFromAdjacentNode(-1, 0, -1, this);
-				DualContour.edgeProc(c,x,xz,z,AXIS.Y, lod, mI, null);
+				cxz.getRenderNode().updateFromAdjacentNode(-1, 0, -1, this);
+				DualContour.edgeProc(c.getChunkContents(),x,xz,z,AXIS.Y, lod, mI, null);
 			}
 			
 			if(y != null && xy !=null && x!=null){
-				cxy.updateFromAdjacentNode(-1, -1, 0, this);
-				DualContour.edgeProc(c,x,xy,y,AXIS.Z, lod, mI, null);
+				cxy.getRenderNode().updateFromAdjacentNode(-1, -1, 0, this);
+				DualContour.edgeProc(c.getChunkContents(),x,xy,y,AXIS.Z, lod, mI, null);
 			}
-			
-			for(int i : interiorInterTriangles.keySet()){
-				MeshOutput interior = interiorInterTriangles.get(i);
-				MeshOutput exterior = interTriangles.get(i);
-				if(exterior !=null){
-					exterior.add(interior);
-				}else{
-					//TODO: possible bug?
-					interTriangles.put(i, interior);
-				}
-			}
-			
 			
 			dirtyEdge = true;
 		}
@@ -245,9 +245,11 @@ public class DualContourMesh extends RenderNode{
 
 
 	@Override
-	public void meshTriangles(OctreeNode node, AdaptiveMeshInterface sdi, LODController lod,  MaterialRegistry mr, GeometryManager gm) {
+	public void meshTriangles(Chunk c, SparseInterface sdi, LODController lod, MaterialRegistry mr,  Node root) {
 		if(dirtyCell){
-			gm.queueDelete(cellData);
+			for(Geometry g : this.cellData){
+				root.detachChild(g);
+			}
 			this.cellData.clear();
 			
 			for(int i : this.interiorTriangles.keySet()){
@@ -271,20 +273,20 @@ public class DualContourMesh extends RenderNode{
 						mesh.setMode(Mode.Lines);
 					}
 					
-					
+					root.attachChild(g);
 					this.cellData.add(g);
 				}
 			}
-			
-			gm.queueAdd(cellData);
 		}
 		
 		if(dirtyEdge){
-			gm.queueDelete(edgeData);
+			for(Geometry g : this.edgeData){
+				root.detachChild(g);
+			}
 			this.edgeData.clear();
 		
 			//Next for each neighbor(grab data about any shared vertices 26 neighbors)
-			ArrayList<DualContourMesh> neighbors = new ArrayList<DualContourMesh>();
+			ArrayList<Chunk> neighbors = new ArrayList<Chunk>();
 			
 			for (int x = -1; x <= 1; x++) {
 				for (int y = -1; y <= 1; y++) {
@@ -292,7 +294,7 @@ public class DualContourMesh extends RenderNode{
 						if (x == 0 && z == 0 && y == 0) {
 							continue;
 						}
-						DualContourMesh neighbor = ((DualContourMesh)sdi.getNeighbor(x,y,z, this));
+						Chunk neighbor = sdi.getChunk(c.cx + x, c.cy + y, c.cz + z);
 						if (neighbor != null) {
 							neighbors.add(neighbor);
 						}
@@ -308,8 +310,8 @@ public class DualContourMesh extends RenderNode{
 			for(int i : this.interTriangles.keySet()){
 				//Get supporting vertices for each of the neighbors
 				supportingVerts.clear();
-				for(DualContourMesh neighbor : neighbors){
-					MeshOutput mo = neighbor.interTriangles.get(i);
+				for(Chunk neighbor : neighbors){
+					MeshOutput mo = ((DualContourMesh)neighbor.getRenderNode()).interTriangles.get(i);
 					if(mo !=null){
 						supportingVerts.add(mo);
 					}
@@ -337,11 +339,19 @@ public class DualContourMesh extends RenderNode{
 					}
 					
 					
+					root.attachChild(g);
 					this.edgeData.add(g);
 				}
-				
-				gm.queueAdd(edgeData);
 			}
+			
+			
+			
+			
+			
+		}
+		
+		if(dirtyCell || dirtyEdge){
+			root.updateModelBound();
 		}
 		
 		dirtyCell = false;
@@ -377,7 +387,7 @@ public class DualContourMesh extends RenderNode{
 	};
 	
 	private boolean onFace(OctreeNode root, OctreeNode leaf){
-		for(int i=0; i< 6; i++){
+		for(int i=0; i < 6; i++){
 			Vector3f v1 = root.getCorner(planes[i*4], new Vector3f());
 			Vector3f v2 = root.getCorner(planes[i*4+1], new Vector3f());
 			Vector3f v3 = root.getCorner(planes[i*4+2], new Vector3f());
@@ -390,7 +400,8 @@ public class DualContourMesh extends RenderNode{
 			}
 			
 			if(on){
-				return on;
+				System.out.println(i);
+				return true;
 			}
 			
 		}

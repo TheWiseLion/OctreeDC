@@ -3,7 +3,7 @@ package VoxelSystem.tmp;
 import VoxelSystem.Data.Storage.OctreeNode;
 import VoxelSystem.SparseData.controller.LODController;
 import VoxelSystem.VoxelMaterials.MaterialRegistry;
-import VoxelSystem.meshing.VoxelMesh;
+import VoxelSystem.meshing.lod.VoxelMesh;
 import VoxelSystem.threading.GeometryManager;
 
 import com.jme3.scene.Node;

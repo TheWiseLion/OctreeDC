@@ -2,7 +2,7 @@ package VoxelSystem.SparseData.ChunkData;
 
 import VoxelSystem.Data.Storage.OctreeNode;
 import VoxelSystem.Data.VoxelExtraction.VoxelExtractor;
-import VoxelSystem.meshing.VoxelMesh;
+import VoxelSystem.meshing.lod.VoxelMesh;
 
 /***
  * 
